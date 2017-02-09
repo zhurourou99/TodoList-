@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html ng-app="todoModule">
+<head>
+    <title>待办事项</title>
+    <meta charset="utf-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <link rel="stylesheet" href="/lib/bootstrap/dist/css/bootstrap.css">
+</head>
+<body style="margin-top: 50px;" ng-controller="todoCtrl">
+<div class="container">
+    <div class="jumbotron text-center">
+        <h1><label class="label label-info">你有{{todos.length}}个待办事项</label></h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-offset-4 col-md-4">
+            <button class="btn btn-success" ng-click="selectAll()">全选</button>
+            <div class="checkbox" ng-repeat="todo in todos">
+                <label>
+                    <input type="checkbox" ng-checked="checked" ng-click="isSelected(todo._id)">
+                    {{todo.text}}<span class="glyphicon glyphicon-minus" ng-click="delete(todo._id)"></span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-offset-2 col-md-8 text-center">
+            <form>
+                <div class="form-group">
+                    <label for="text">新的事项</label>
+                    <input type="text" id="text" class="form-control" ng-model="todo.text">
+
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-primary" ng-click="addTodo()">增加</button>
+                    <button class="btn btn-primary" ng-click="batchDelete()">批量删除</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+</div>
+</body>
+<script src="/lib/jquery/dist/jquery.js"></script>
+<script src="/lib/bootstrap/dist/js/bootstrap.js"></script>
+<script src="/lib/angular/angular.js"></script>
+<script>
+    angular.module('todoModule', []);
+    angular.module('todoModule').factory('todoService', function ($http) {
+        return {
+            list: function () {//列出所有
+                return $http.get('/todos');
+            },
+            add: function (data) {//增加
+                //把data放在请求体里
+                return $http.post('/todos', data);
+            },
+            delete: function (id) {//增加
+                return $http.delete('/todos/' + id);
+            },
+            batchDelete: function (data) {
+                return $http.delete('/todos/delete', data);
+            }
+        }
+    });
+    angular.module('todoModule').controller('todoCtrl', function ($scope, todoService) {
+        //请向服务器所有的待办事项,返回一个promise
+        todoService.list().success(function (todos) {
+            todos.forEach(function(todo){
+                todo.checked = false;
+            });
+            $scope.todos = todos;
+        });
+        $scope.todo = {};
+        $scope.selected = [];
+        $scope.checked = 0;
+        $scope.addTodo = function () {
+            //保存新的事项
+            todoService.add($scope.todo).success(function (todo) {
+                $scope.todos.push(todo);
+                $scope.todo = {};
+            });
+        }
+        $scope.delete = function (id) {
+            todoService.delete(id).success(function (data) {
+                $scope.todos = $scope.todos.filter(function (todo) {
+                    return todo._id != id;
+                });
+            });
+        }
+
+        $scope.isSelected = function (id) {
+            var index = $scope.selected.indexOf(id);
+            if (index >= 0) {
+                $scope.selected.splice(index, 1);
+            } else {
+                $scope.selected.push(id);
+            }
+        }
+        $scope.batchDelete = function () {
+            todoService.batchDelete($scope.selected).success(function () {
+                $scope.todos = $scope.todos.filter(function (todo) {
+                    return $scope.selected.indexOf(todo._id) == -1;
+                });
+            });
+        }
+
+        $scope.selectAll = function(){
+            $scope.checked = $scope.checked?0:1;
+            // 清空要删除的ID列表
+            $scope.selected.length =0;
+            //如果是全选的话，要把所有的ID全部添加到删除的ID列表中
+            if($scope.checked){
+                $scope.todos.forEach(function(todo){
+                    $scope.selected.push(todo._id);
+                });
+            }
+        }
+    });
+</script>
+</html>
